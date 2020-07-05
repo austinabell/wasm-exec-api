@@ -2039,6 +2039,7 @@ dependencies = [
  "hex",
  "serde",
  "wasmer-runtime",
+ "wasmer-runtime-core",
 ]
 
 [[package]]
