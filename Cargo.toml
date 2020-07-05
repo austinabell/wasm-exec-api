@@ -1,0 +1,10 @@
+[package]
+name = "wasm-exec-api"
+version = "0.1.0"
+authors = ["austinabell <austinabell8@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+actix-web = "3.0.0-alpha.3"
+actix-rt = "1.1"
+serde = "1.0"
