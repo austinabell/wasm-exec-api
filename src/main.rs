@@ -1,6 +1,8 @@
+mod config;
 mod logger;
 mod server;
 
+use config::Config;
 use serde::Deserialize;
 use serde_json::Number;
 use std::num::ParseIntError;
@@ -87,7 +89,9 @@ fn params_to_wasm(values: Vec<Number>, types: &[Type]) -> Result<Vec<WasmValue>,
 async fn main() -> std::io::Result<()> {
     logger::setup_logger();
 
-    server::start().await
+    let cfg: Config = argh::from_env();
+
+    server::start(cfg.port).await
 }
 
 #[cfg(test)]
