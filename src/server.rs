@@ -1,8 +1,8 @@
-use super::{call_wasm, RequestPayload};
+use super::{wasm::call_wasm, RequestPayload};
 use actix_web::{error, web, App, HttpServer, Result};
 
 async fn index(req: web::Json<RequestPayload>) -> Result<String> {
-    call_wasm(req.0).map_err(|e| error::ErrorNotAcceptable(e))
+    call_wasm(req.0).map_err(error::ErrorNotAcceptable)
 }
 
 pub(super) async fn start(port: u16) -> std::io::Result<()> {
