@@ -27,10 +27,10 @@ struct RequestPayload {
 
 fn call_fn(instance: &Instance, fn_name: &str, params: Vec<WasmValue>) -> Result<String, String> {
     let function: DynFunc = instance.exports.get(&fn_name).map_err(|e| e.to_string())?;
-    function
-        .call(&params)
-        .map(|r| format!("{:?}", r))
-        .map_err(|e| e.to_string())
+    match function.call(&params) {
+        Ok(r) => serde_json::to_string(&r).map_err(|e| e.to_string()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 fn call_wasm(
@@ -45,10 +45,7 @@ fn call_wasm(
     // Instantiate the wasm runtime
     let instance = instantiate(&wasm_bytes, &imports! {}).map_err(|e| e.to_string())?;
 
-    let res = call_fn(&instance, &function_name, params)?;
-
-    // Convert result into string to return
-    Ok(res.to_string())
+    call_fn(&instance, &function_name, params)
 }
 
 async fn index(req: web::Json<RequestPayload>) -> Result<String> {
