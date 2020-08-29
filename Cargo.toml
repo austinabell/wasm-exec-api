@@ -14,7 +14,4 @@ wasmer-runtime-core = "0.17.1"
 async-log = "2.0"
 log = "0.4.8"
 pretty_env_logger = "0.4"
-serde_json = "1.0"
-
-[dev-dependencies]
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
