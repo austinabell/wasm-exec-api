@@ -1,23 +1,11 @@
-use actix_web::{error, web, App, HttpServer, Result};
-use log::LevelFilter;
+mod logger;
+mod server;
+
 use serde::Deserialize;
 use serde_json::Number;
 use std::num::ParseIntError;
 use std::string::ToString;
 use wasmer_runtime::{imports, instantiate, types::Type, DynFunc, Instance, Value as WasmValue};
-
-fn setup_logger() {
-    let mut logger_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        logger_builder.parse_filters(&s);
-    } else {
-        logger_builder.filter(None, LevelFilter::Info);
-    }
-    let logger = logger_builder.build();
-    async_log::Logger::wrap(logger, || 12)
-        .start(log::LevelFilter::Trace)
-        .unwrap();
-}
 
 #[derive(Deserialize, Debug)]
 struct RequestPayload {
@@ -52,10 +40,6 @@ fn call_wasm(
     let instance = instantiate(&wasm_bytes, &imports! {}).map_err(|e| e.to_string())?;
 
     call_fn(&instance, &function_name, params)
-}
-
-async fn index(req: web::Json<RequestPayload>) -> Result<String> {
-    call_wasm(req.0).map_err(|e| error::ErrorNotAcceptable(e))
 }
 
 fn params_to_wasm(values: Vec<Number>, types: &[Type]) -> Result<Vec<WasmValue>, String> {
@@ -101,12 +85,9 @@ fn params_to_wasm(values: Vec<Number>, types: &[Type]) -> Result<Vec<WasmValue>,
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    setup_logger();
+    logger::setup_logger();
 
-    HttpServer::new(|| App::new().route("/", web::post().to(index)))
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+    server::start().await
 }
 
 #[cfg(test)]
