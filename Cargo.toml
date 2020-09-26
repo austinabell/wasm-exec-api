@@ -5,7 +5,7 @@ authors = ["austinabell <austinabell8@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-actix-web = "3.0.0-alpha.3"
+actix-web = "3.0.0"
 actix-rt = "1.1"
 serde = "1.0"
 wasmer-runtime = "0.17.1"

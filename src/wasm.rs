@@ -1,9 +1,24 @@
-use super::RequestPayload;
 use serde_json::Number;
 use std::num::ParseIntError;
 use std::string::ToString;
-use wasmer_runtime::{imports, instantiate, types::Type, DynFunc, Instance, Value as WasmValue};
+use wasmer_runtime::{
+    instantiate, types::Type, DynFunc, ImportObject, Instance, Value as WasmValue,
+};
 
+/// Instantiates Wasm module and calls function name provided from the module.
+pub(crate) fn execute_wasm(
+    wasm_bytes: &[u8],
+    function_name: &str,
+    params: Vec<Number>,
+    imports: &ImportObject,
+) -> Result<String, String> {
+    // Instantiate the wasm runtime
+    let instance = instantiate(wasm_bytes, imports).map_err(|e| e.to_string())?;
+
+    call_fn(&instance, &function_name, params)
+}
+
+/// Calls the dynamic function with the params deserialized based on the function signature type.
 fn call_fn(instance: &Instance, fn_name: &str, params: Vec<Number>) -> Result<String, String> {
     let function: DynFunc = instance.exports.get(&fn_name).map_err(|e| e.to_string())?;
     let sig_params = function.signature().params();
@@ -16,21 +31,7 @@ fn call_fn(instance: &Instance, fn_name: &str, params: Vec<Number>) -> Result<St
     }
 }
 
-pub(crate) fn call_wasm(
-    RequestPayload {
-        wasm_hex,
-        function_name,
-        params,
-    }: RequestPayload,
-) -> Result<String, String> {
-    let wasm_bytes = hex::decode(&wasm_hex).map_err(|e| e.to_string())?;
-
-    // Instantiate the wasm runtime
-    let instance = instantiate(&wasm_bytes, &imports! {}).map_err(|e| e.to_string())?;
-
-    call_fn(&instance, &function_name, params)
-}
-
+/// Converts the parameter values to the Wasmer value types to be used in execution.
 fn params_to_wasm(values: Vec<Number>, types: &[Type]) -> Result<Vec<WasmValue>, String> {
     if values.len() != types.len() {
         return Err(format!(

@@ -1,5 +1,6 @@
 use log::LevelFilter;
 
+/// Parses RUST_LOG configuration, as well as initializing async logger.
 pub(super) fn setup_logger() {
     let mut logger_builder = pretty_env_logger::formatted_timed_builder();
     if let Ok(s) = ::std::env::var("RUST_LOG") {
