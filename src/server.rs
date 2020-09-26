@@ -1,9 +1,17 @@
 use super::wasm::execute_wasm;
 use actix_web::{error, post, web, App, HttpServer, Result};
+use dirs::home_dir;
 use serde::Deserialize;
 use serde_json::Number;
+use sled::Db;
 use std::borrow::Cow;
-use wasmer_runtime::ImportObject;
+use std::sync::Arc;
+use wasmer_runtime::{instantiate, ImportObject};
+
+struct ServerData {
+    /// Database which stores wasm code to be loaded and run.
+    db: Arc<Db>,
+}
 
 #[derive(Deserialize, Debug)]
 struct RequestPayload<'a> {
@@ -12,10 +20,8 @@ struct RequestPayload<'a> {
     #[serde(default)]
     params: Vec<Number>,
     #[serde(default)]
-    host_functions: Vec<Cow<'a, str>>,
+    host_modules: Vec<Cow<'a, str>>,
 }
-
-struct ServerData {}
 
 #[post("/")]
 async fn index(
@@ -23,25 +29,69 @@ async fn index(
         wasm_hex,
         function_name,
         params,
-        ..
+        host_modules,
     }): web::Json<RequestPayload<'_>>,
-    _data: web::Data<ServerData>,
+    data: web::Data<ServerData>,
 ) -> Result<String> {
     let wasm_bytes =
         hex::decode(wasm_hex.as_ref()).map_err(|e| error::ErrorBadRequest(e.to_string()))?;
 
     // Import host functions
-    let imports = ImportObject::new();
-    // TODO register stored functions
+    let mut imports = ImportObject::new();
+    for module in host_modules {
+        if let Some(bz) = data
+            .db
+            .get(module.as_ref())
+            .map_err(|e| error::ErrorInternalServerError(e.to_string()))?
+        {
+            // TODO when host functions are stored, load them for the instance import
+            let import = instantiate(bz.as_ref(), &ImportObject::new()).unwrap();
+            imports.register(module, import);
+        }
+    }
 
     execute_wasm(&wasm_bytes, &function_name, params, &imports).map_err(error::ErrorNotAcceptable)
 }
 
+#[derive(Deserialize, Debug)]
+struct RegisterPayload<'a> {
+    module_name: Cow<'a, str>,
+    wasm_hex: Cow<'a, str>,
+}
+
+#[post("/register")]
+async fn register(
+    web::Json(RegisterPayload {
+        module_name,
+        wasm_hex,
+    }): web::Json<RegisterPayload<'_>>,
+    data: web::Data<ServerData>,
+) -> Result<String> {
+    // TODO allow host function to be stored with sub functions
+    let wasm_bytes =
+        hex::decode(wasm_hex.as_ref()).map_err(|e| error::ErrorBadRequest(e.to_string()))?;
+    data.db
+        .insert(module_name.as_ref(), wasm_bytes)
+        .map_err(|e| error::ErrorInternalServerError(e.to_string()))?;
+    Ok(format!("Stored {}", module_name))
+}
+
+/// Initialize database and start server.
 pub(super) async fn start(port: u16) -> std::io::Result<()> {
-    HttpServer::new(|| App::new().data(ServerData {}).service(index))
-        .bind(format!("127.0.0.1:{}", port))?
-        .run()
-        .await
+    let data_dir = home_dir().unwrap();
+    let db =
+        Arc::new(sled::open(format!("{}/.wasm_exec_api", data_dir.to_str().unwrap())).unwrap());
+    HttpServer::new(move || {
+        App::new()
+            .data(ServerData { db: db.clone() })
+            // Executing wasm code
+            .service(index)
+            // Registering functions to be executed
+            .service(register)
+    })
+    .bind(format!("127.0.0.1:{}", port))?
+    .run()
+    .await
 }
 
 #[cfg(test)]
