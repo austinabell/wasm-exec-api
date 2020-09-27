@@ -1,3 +1,4 @@
+use super::config::Config;
 use super::utils::*;
 use super::wasm::execute_wasm;
 use actix_web::{error, post, web, App, HttpServer, Result};
@@ -74,10 +75,21 @@ async fn register(
 }
 
 /// Initialize database and start server.
-pub(super) async fn start(port: u16) -> std::io::Result<()> {
-    let data_dir = home_dir().unwrap();
-    let db =
-        Arc::new(sled::open(format!("{}/.wasm_exec_api", data_dir.to_str().unwrap())).unwrap());
+pub(super) async fn start(
+    Config {
+        port,
+        data_directory,
+        memory,
+    }: Config,
+) -> std::io::Result<()> {
+    let db = if memory {
+        sled::Config::new().temporary(true).open().unwrap()
+    } else {
+        let path = data_directory
+            .unwrap_or_else(|| format!("{}/.wasm_exec_api", home_dir().unwrap().to_str().unwrap()));
+        sled::open(path).unwrap()
+    };
+    let db = Arc::new(db);
     HttpServer::new(move || {
         App::new()
             .data(ServerData { db: db.clone() })

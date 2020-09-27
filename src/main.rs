@@ -12,5 +12,5 @@ async fn main() -> std::io::Result<()> {
 
     let cfg: Config = argh::from_env();
 
-    server::start(cfg.port).await
+    server::start(cfg).await
 }

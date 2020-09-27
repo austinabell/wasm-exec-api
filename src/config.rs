@@ -6,5 +6,12 @@ pub(super) struct Config {
     /// port to start the server on.
     #[argh(option, default = "4000", short = 'p')]
     pub port: u16,
-    // TODO allow configuring data directory and if an memory store
+
+    /// data directory for storing registered Wasm functions.
+    #[argh(option, short = 'd')]
+    pub data_directory: Option<String>,
+
+    /// if flag is set, database will not be persisted
+    #[argh(switch, short = 'm')]
+    pub memory: bool,
 }
