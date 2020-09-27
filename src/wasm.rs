@@ -11,7 +11,7 @@ pub(crate) fn execute_wasm(
     function_name: &str,
     params: Vec<Number>,
     imports: &ImportObject,
-) -> Result<String, String> {
+) -> Result<Vec<WasmValue>, String> {
     // Instantiate the wasm runtime
     let instance = instantiate(wasm_bytes, imports).map_err(|e| e.to_string())?;
 
@@ -19,16 +19,17 @@ pub(crate) fn execute_wasm(
 }
 
 /// Calls the dynamic function with the params deserialized based on the function signature type.
-fn call_fn(instance: &Instance, fn_name: &str, params: Vec<Number>) -> Result<String, String> {
+pub(crate) fn call_fn(
+    instance: &Instance,
+    fn_name: &str,
+    params: Vec<Number>,
+) -> Result<Vec<WasmValue>, String> {
     let function: DynFunc = instance.exports.get(&fn_name).map_err(|e| e.to_string())?;
     let sig_params = function.signature().params();
 
     let wasm_params = params_to_wasm(params, sig_params)?;
 
-    match function.call(&wasm_params) {
-        Ok(r) => serde_json::to_string(&r).map_err(|e| e.to_string()),
-        Err(e) => Err(e.to_string()),
-    }
+    function.call(&wasm_params).map_err(|e| e.to_string())
 }
 
 /// Converts the parameter values to the Wasmer value types to be used in execution.
