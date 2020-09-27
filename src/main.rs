@@ -1,6 +1,7 @@
 mod config;
 mod logger;
 mod server;
+mod utils;
 mod wasm;
 
 use config::Config;
