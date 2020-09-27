@@ -1,8 +1,13 @@
-# wasm-exec-api
+wasm-exec-api
+=======
 
-**This is wip and just as poc/fun for now** 
+[<img alt="build status" src="https://img.shields.io/github/workflow/status/austinabell/wasm-exec-api/CI/main?style=for-the-badge" height="20">](https://github.com/austinabell/wasm-exec-api/actions?query=branch%3Amain)
 
-Server that sets up a wasm runtime on request with hex dump of wasm binary, function name to call, and optionally parameters for the function call and executes.
+**This is just a fun project and should not be used for any production use cases**
+
+Wasm remote execution through REST API server. Wasm code can be executed through a `POST` request to the `/` endpoint with hex encoded wasm binary, function name to call, and optionally parameters to pass in the function.
+
+Code can also be persisted and recursively linked, using the `/register` endpoint, which accepts a `POST` request with the module name, code, and optionally sub modules to be accessible by the module.
 
 ### Example request
 
@@ -39,7 +44,7 @@ and then use `xxd` to convert to hex, or can dump binary and format to hex manua
 wat2wasm file.wat --dump-module
 ```
 
-## Registering host functions
+## Registering host modules
 
 ```
 # Register the function to be used
