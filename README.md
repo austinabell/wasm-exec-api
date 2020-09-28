@@ -7,11 +7,11 @@ wasm-exec-api
 
 Wasm remote execution through REST API server. Wasm code can be executed through a `POST` request to the `/` endpoint with hex encoded wasm binary, function name to call, and optionally parameters to pass in the function.
 
-Code can also be persisted and recursively linked, using the `/register` endpoint, which accepts a `POST` request with the module name, code, and optionally sub modules to be accessible by the module.
+Code can also be persisted and recursively linked, using the `/register` endpoint, which accepts a `POST` request with the module name, code, and optionally sub modules to be accessible by the module. With registered functions, requests can be sent to `/execute` to call a function with parameters from the registered module.
 
 ### Example request
 
-```
+```bash
 curl -X POST --data '{"wasm_hex": "0061736d0100000001060160017f017f03020100070a0106646f75626c6500000a09010700200041026c0b", "function_name": "double", "params": [2]}' -H "Content-Type: application/json" http://localhost:4000/
 ```
 
@@ -26,7 +26,7 @@ curl -X POST --data '{"wasm_hex": "0061736d0100000001060160017f017f03020100070a0
 ## Generating hex dump of wasm file
 
 Convert wasm binary file to hex dump, which will be used as `"wasm_hex"` parameter
-```
+```bash
 xxd -ps -c 100000 file.wasm
 ```
 
@@ -34,22 +34,25 @@ xxd -ps -c 100000 file.wasm
 
 Convert using [WASM binary toolkit](https://github.com/WebAssembly/wabt) `wat2wasm`
 
-```
+```bash
 wat2wasm file.wat -o file.wasm
 ```
 
 and then use `xxd` to convert to hex, or can dump binary and format to hex manually
 
-```
+```bash
 wat2wasm file.wat --dump-module
 ```
 
 ## Registering host modules
 
-```
+```bash
 # Register the function to be used
 curl -X POST --data '{"module_name": "utils", "wasm_hex": "0061736d0100000001060160017f017f03020100070a0106646f75626c6500000a09010700200041026c0b"}' -H "Content-Type: application/json" http://localhost:4000/register
 
-# Call the function, including the module import
+# This registered module can be called directly with the execute endpoint
+curl -X POST --data '{"module_name": "utils", "function_name": "double", "params": [2]}' -H "Content-Type: application/json" http://localhost:4000/execute
+
+# Can use general endpoint to execute code that uses the registered module as a host function
 curl -X POST --data '{"wasm_hex": "0061736d0100000001060160017f017f021001057574696c7306646f75626c650000030201000710010c646f75626c655f747769636500010a0a0108002000100010000b", "function_name": "double_twice", "params": [2], "host_modules": ["utils"]}' -H "Content-Type: application/json" http://localhost:4000/
 ```
