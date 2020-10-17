@@ -1,8 +1,8 @@
 use super::ServerData;
-use crate::utils::*;
 use actix_web::{error, post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use utils::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Request<'a> {
@@ -23,8 +23,13 @@ async fn handle(
 ) -> Result<HttpResponse> {
     let wasm_bytes = hex::decode(wasm_hex.as_ref()).map_err(error::ErrorBadRequest)?;
 
-    store_wasm_module(&data.db, module_name.as_ref(), &wasm_bytes, &host_modules)
-        .map_err(error::ErrorInternalServerError)?;
+    store_wasm_module(
+        data.db.as_ref(),
+        module_name.as_ref(),
+        &wasm_bytes,
+        &host_modules,
+    )
+    .map_err(error::ErrorInternalServerError)?;
 
     Ok(HttpResponse::Ok().body(format!("Successfully stored module: {}", module_name)))
 }

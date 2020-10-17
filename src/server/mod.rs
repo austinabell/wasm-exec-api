@@ -2,36 +2,19 @@ mod execute;
 mod index;
 mod register;
 
-use crate::config::Config;
+use crate::LocalDB;
 use actix_web::{App, HttpServer};
-use dirs::home_dir;
-use sled::Db;
 use std::sync::Arc;
 
 struct ServerData {
     /// Database which stores wasm code to be loaded and run.
-    db: Arc<Db>,
+    db: Arc<LocalDB>,
 }
-
 /// Initialize database and start server.
-pub(super) async fn start(
-    Config {
-        port,
-        data_directory,
-        memory,
-    }: Config,
-) -> std::io::Result<()> {
-    let db = if memory {
-        sled::Config::new().temporary(true).open().unwrap()
-    } else {
-        let path = data_directory
-            .unwrap_or_else(|| format!("{}/.wasm_exec_api", home_dir().unwrap().to_str().unwrap()));
-        sled::open(path).unwrap()
-    };
-    let db = Arc::new(db);
+pub(super) async fn start(port: u16, store: Arc<LocalDB>) -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
-            .data(ServerData { db: db.clone() })
+            .data(ServerData { db: store.clone() })
             // Executing wasm code.
             .service(index::handle)
             // Registering functions to be executed.
@@ -47,12 +30,15 @@ pub(super) async fn start(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::LocalDB;
     use actix_web::{http::header, test};
+    use serde_cbor::{from_slice, to_vec};
+    use utils::*;
     use wasmer_runtime::Value as WasmValue;
 
     #[actix_rt::test]
     async fn full_usage_path() {
-        let db = Arc::new(sled::Config::new().temporary(true).open().unwrap());
+        let db = Arc::new(LocalDB(sled::Config::new().temporary(true).open().unwrap()));
 
         let utils_code = include_bytes!("../../utils.wasm");
         let hex_utils = hex::encode(utils_code.as_ref());
@@ -82,7 +68,8 @@ mod tests {
                 host_modules: Vec::new(),
             })
             .to_request();
-        let resp: Vec<WasmValue> = test::read_response_json(&mut app, req).await;
+        let body = test::read_response(&mut app, req).await;
+        let resp: [WasmValue; 1] = serde_json::from_slice(&body).unwrap();
         assert_eq!(resp, [WasmValue::I32(4)]);
 
         // Register utils module
@@ -124,5 +111,40 @@ mod tests {
             .to_request();
         let resp: Vec<WasmValue> = test::read_response_json(&mut app, req).await;
         assert_eq!(resp, [WasmValue::I32(8)]);
+    }
+
+    #[test]
+    fn wasm_module_symmetric_serialize() {
+        let wasm_ref = WasmModuleRef {
+            code: b"test code",
+            host_modules: &["one".into(), "two".into()],
+        };
+        let serialized = to_vec(&wasm_ref).unwrap();
+        let wasm_mod_deser: WasmModule = from_slice(&serialized).unwrap();
+        assert_eq!(wasm_mod_deser.code, wasm_ref.code);
+        assert_eq!(wasm_mod_deser.host_modules, wasm_ref.host_modules);
+    }
+
+    #[test]
+    fn store_load() {
+        let config = sled::Config::new().temporary(true);
+        let db = LocalDB(config.open().unwrap());
+        let code = include_bytes!("../../utils.wasm");
+
+        assert!(load_wasm_module_recursive(&db, "utils").is_err());
+
+        // Trying to load with dependency module that doesn't exist
+        assert!(store_wasm_module(&db, "test", code, &["utils".into()]).is_err());
+
+        // Store and load utils
+        store_wasm_module(&db, "utils", code, &[]).unwrap();
+        assert!(load_wasm_module_recursive(&db, "utils").is_ok());
+
+        // Shouldn't be able to overwrite existing module
+        assert!(store_wasm_module(&db, "utils", code, &[]).is_err());
+
+        // Should be able to store link with host module of now stored "utils"
+        store_wasm_module(&db, "link", code, &["utils".into()]).unwrap();
+        assert!(load_wasm_module_recursive(&db, "link").is_ok());
     }
 }

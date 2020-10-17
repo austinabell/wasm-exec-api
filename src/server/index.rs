@@ -1,10 +1,9 @@
 use super::ServerData;
-use crate::utils::*;
-use crate::wasm::execute_wasm;
 use actix_web::{error, post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::borrow::Cow;
+use utils::{load_wasm_module_recursive, wasm::execute_wasm};
 use wasmer_runtime::ImportObject;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,7 +32,7 @@ async fn handle(
     // Import host functions
     let mut imports = ImportObject::new();
     for module in host_modules {
-        let import = load_wasm_module_recursive(&data.db, module.as_ref())
+        let import = load_wasm_module_recursive(data.db.as_ref(), module.as_ref())
             .map_err(error::ErrorInternalServerError)?;
         imports.register(module, import);
     }

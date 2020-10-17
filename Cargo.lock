@@ -2328,8 +2328,20 @@ dependencies = [
  "serde_json",
  "serde_tuple",
  "sled",
+ "wasm-exec-utils",
  "wasmer-runtime",
  "wasmer-runtime-core",
+]
+
+[[package]]
+name = "wasm-exec-utils"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_cbor",
+ "serde_json",
+ "serde_tuple",
+ "wasmer-runtime",
 ]
 
 [[package]]

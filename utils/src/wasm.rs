@@ -6,7 +6,7 @@ use wasmer_runtime::{
 };
 
 /// Instantiates Wasm module and calls function name provided from the module.
-pub(crate) fn execute_wasm(
+pub fn execute_wasm(
     wasm_bytes: &[u8],
     function_name: &str,
     params: Vec<Number>,
@@ -19,7 +19,7 @@ pub(crate) fn execute_wasm(
 }
 
 /// Calls the dynamic function with the params deserialized based on the function signature type.
-pub(crate) fn call_fn(
+pub fn call_fn(
     instance: &Instance,
     fn_name: &str,
     params: Vec<Number>,
