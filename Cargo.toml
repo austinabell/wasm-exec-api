@@ -5,8 +5,6 @@ authors = ["austinabell <austinabell8@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-actix-web = "3.0.0"
-actix-rt = "1.1"
 serde = "1.0"
 wasmer-runtime = "0.17.1"
 hex = "0.4.2"
@@ -21,6 +19,14 @@ dirs = "3.0"
 serde_cbor = "0.11.0"
 serde_tuple = "0.5"
 utils = { path = "./utils", package = "wasm-exec-utils" }
+tide = "0.14.0"
+async-std = { version = "1.6.3", features = ["attributes"] }
+anyhow = "1.0"
+
+[dev-dependencies]
+http-types = "2.5.0"
+surf = "2.0"
+portpicker = "0.1.0"
 
 [workspace]
 members = ["utils"]

@@ -8,8 +8,8 @@ use dirs::home_dir;
 use local_db::LocalDB;
 use std::sync::Arc;
 
-#[actix_rt::main]
-async fn main() -> std::io::Result<()> {
+#[async_std::main]
+async fn main() -> tide::Result<()> {
     logger::setup_logger();
 
     let Config {

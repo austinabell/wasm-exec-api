@@ -1,8 +1,9 @@
 use super::ServerData;
-use actix_web::{error, post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::borrow::Cow;
+use std::sync::Arc;
+use tide::{Body, Response, StatusCode};
 use utils::{load_wasm_module_recursive, wasm::execute_wasm};
 use wasmer_runtime::ImportObject;
 
@@ -16,30 +17,27 @@ pub struct Request<'a> {
     pub host_modules: Vec<Cow<'a, str>>,
 }
 
-#[post("/")]
-async fn handle(
-    web::Json(Request {
+pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result {
+    let Request {
         wasm_hex,
         function_name,
         params,
         host_modules,
-    }): web::Json<Request<'_>>,
-    data: web::Data<ServerData>,
-) -> Result<HttpResponse> {
-    let wasm_bytes =
-        hex::decode(wasm_hex.as_ref()).map_err(|e| error::ErrorBadRequest(e.to_string()))?;
+    } = req.body_json().await?;
+
+    let wasm_bytes = hex::decode(wasm_hex.as_ref())?;
 
     // Import host functions
     let mut imports = ImportObject::new();
     for module in host_modules {
-        let import = load_wasm_module_recursive(data.db.as_ref(), module.as_ref())
-            .map_err(error::ErrorInternalServerError)?;
+        let import = load_wasm_module_recursive(req.state().db.as_ref(), module.as_ref())?;
         imports.register(module, import);
     }
 
-    let res = execute_wasm(&wasm_bytes, &function_name, params, &imports)
-        .map_err(error::ErrorNotAcceptable)?;
-    Ok(HttpResponse::Ok().json(res))
+    let res = execute_wasm(&wasm_bytes, &function_name, params, &imports)?;
+    Ok(Response::builder(StatusCode::Ok)
+        .body(Body::from_json(&res)?)
+        .build())
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use super::ServerData;
-use actix_web::{error, post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::sync::Arc;
 use utils::*;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -12,24 +12,21 @@ pub struct Request<'a> {
     pub host_modules: Vec<Cow<'a, str>>,
 }
 
-#[post("/register")]
-async fn handle(
-    web::Json(Request {
+pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result<String> {
+    let Request {
         module_name,
         wasm_hex,
         host_modules,
-    }): web::Json<Request<'_>>,
-    data: web::Data<ServerData>,
-) -> Result<HttpResponse> {
-    let wasm_bytes = hex::decode(wasm_hex.as_ref()).map_err(error::ErrorBadRequest)?;
+    } = req.body_json().await?;
+
+    let wasm_bytes = hex::decode(wasm_hex.as_ref())?;
 
     store_wasm_module(
-        data.db.as_ref(),
+        req.state().db.as_ref(),
         module_name.as_ref(),
         &wasm_bytes,
         &host_modules,
-    )
-    .map_err(error::ErrorInternalServerError)?;
+    )?;
 
-    Ok(HttpResponse::Ok().body(format!("Successfully stored module: {}", module_name)))
+    Ok(format!("Successfully stored module: {}", module_name))
 }

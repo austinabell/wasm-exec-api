@@ -1,8 +1,9 @@
 use super::ServerData;
-use actix_web::{error, post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::borrow::Cow;
+use std::sync::Arc;
+use tide::{Body, Response, StatusCode};
 use utils::{load_wasm_module_recursive, wasm};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -13,19 +14,16 @@ pub struct Request<'a> {
     pub params: Vec<Number>,
 }
 
-#[post("/execute")]
-async fn handle(
-    web::Json(Request {
+pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result {
+    let Request {
         module_name,
         function_name,
         params,
-    }): web::Json<Request<'_>>,
-    data: web::Data<ServerData>,
-) -> Result<HttpResponse> {
-    let module = load_wasm_module_recursive(data.db.as_ref(), &module_name)
-        .map_err(error::ErrorNotAcceptable)?;
+    } = req.body_json().await?;
+    let module = load_wasm_module_recursive(req.state().db.as_ref(), &module_name)?;
 
-    let res = wasm::call_fn(&module, &function_name, params).map_err(error::ErrorNotAcceptable)?;
-
-    Ok(HttpResponse::Ok().json(res))
+    let res = wasm::call_fn(&module, &function_name, params)?;
+    Ok(Response::builder(StatusCode::Ok)
+        .body(Body::from_json(&res)?)
+        .build())
 }

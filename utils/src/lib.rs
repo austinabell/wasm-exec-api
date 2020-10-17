@@ -2,9 +2,9 @@ extern crate serde;
 
 pub mod wasm;
 
+use anyhow::{anyhow, Error};
 use serde_tuple::{Deserialize_tuple, Serialize_tuple};
 use std::borrow::Cow;
-use std::error::Error;
 use wasmer_runtime::{instantiate, ImportObject, Instance};
 
 /// Data layout for a wasm module.
@@ -25,10 +25,10 @@ pub struct WasmModuleRef<'a, 'm> {
 /// Interface to allow wasm modules to be loaded and stored with different backends.
 pub trait WasmStore {
     /// Loads Wasm module from store.
-    fn load_module(&self, name: impl AsRef<[u8]>) -> Result<WasmModule, String>;
+    fn load_module(&self, name: impl AsRef<[u8]>) -> Result<WasmModule, Error>;
 
     /// Checks if module already exists in the store.
-    fn contains_module(&self, name: impl AsRef<[u8]>) -> Result<bool, String>;
+    fn contains_module(&self, name: impl AsRef<[u8]>) -> Result<bool, Error>;
 
     /// Stores wasm module in store.
     fn put_module(
@@ -36,11 +36,11 @@ pub trait WasmStore {
         name: impl AsRef<[u8]>,
         code: &[u8],
         host_modules: &[Cow<'_, str>],
-    ) -> Result<(), String>;
+    ) -> Result<(), Error>;
 }
 
 /// Loads wasm module from store, as well as loading all module dependencies recursively.
-pub fn load_wasm_module_recursive<S>(db: &S, module_name: &str) -> Result<Instance, Box<dyn Error>>
+pub fn load_wasm_module_recursive<S>(db: &S, module_name: &str) -> Result<Instance, Error>
 where
     S: WasmStore,
 {
@@ -51,7 +51,7 @@ where
         let loaded = load_wasm_module_recursive(db, sub_module.as_ref())?;
         imports.register(sub_module, loaded);
     }
-    Ok(instantiate(module.code.as_ref(), &imports)?)
+    Ok(instantiate(module.code.as_ref(), &imports).map_err(|e| anyhow!("{}", e))?)
 }
 
 /// Stores wasm module to the database. This function also checks to make sure all of the
@@ -61,26 +61,25 @@ pub fn store_wasm_module<S>(
     module_name: &str,
     code: &[u8],
     host_modules: &[Cow<'_, str>],
-) -> Result<(), Box<dyn Error>>
+) -> Result<(), Error>
 where
     S: WasmStore,
 {
     // This check is just to short circuit the other logic, the insertion is unique.
     if db.contains_module(module_name)? {
-        return Err(format!(
+        return Err(anyhow!(
             "Could not store module {}: already exists in database",
             module_name
-        )
-        .into());
+        ));
     }
 
     for module in host_modules {
         if !db.contains_module(module.as_bytes())? {
-            return Err(format!(
+            return Err(anyhow!(
                 "Could not store module {}: dependency module {} does not exist in database",
-                module_name, module
-            )
-            .into());
+                module_name,
+                module
+            ));
         }
     }
 

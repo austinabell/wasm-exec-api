@@ -3,40 +3,46 @@ mod index;
 mod register;
 
 use crate::LocalDB;
-use actix_web::{App, HttpServer};
 use std::sync::Arc;
+use tide::utils::After;
+use tide::Response;
 
-struct ServerData {
+pub struct ServerData {
     /// Database which stores wasm code to be loaded and run.
-    db: Arc<LocalDB>,
+    pub db: Arc<LocalDB>,
 }
 /// Initialize database and start server.
-pub(super) async fn start(port: u16, store: Arc<LocalDB>) -> std::io::Result<()> {
-    HttpServer::new(move || {
-        App::new()
-            .data(ServerData { db: store.clone() })
-            // Executing wasm code.
-            .service(index::handle)
-            // Registering functions to be executed.
-            .service(register::handle)
-            // Execute function on registered module.
-            .service(execute::handle)
-    })
-    .bind(format!("127.0.0.1:{}", port))?
-    .run()
-    .await
+pub(super) async fn start(port: u16, store: Arc<LocalDB>) -> tide::Result<()> {
+    let mut app = tide::with_state(Arc::new(ServerData { db: store }));
+
+    app.with(After(|mut res: Response| async {
+        // ! You may want to remove this error message, only helpful for debugging
+        if let Some(s) = res.error().map(|e| e.to_string()) {
+            res.set_body(s);
+        }
+        Ok(res)
+    }));
+
+    app.at("/").post(index::handle);
+    app.at("/register").post(register::handle);
+    app.at("/execute").post(execute::handle);
+    app.listen(format!("localhost:{}", port)).await?;
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::LocalDB;
-    use actix_web::{http::header, test};
+    use async_std::prelude::*;
+    use async_std::task;
     use serde_cbor::{from_slice, to_vec};
+    use std::time::Duration;
     use utils::*;
     use wasmer_runtime::Value as WasmValue;
 
-    #[actix_rt::test]
+    #[async_std::test]
     async fn full_usage_path() {
         let db = Arc::new(LocalDB(sled::Config::new().temporary(true).open().unwrap()));
 
@@ -48,69 +54,75 @@ mod tests {
 
         const UTILS: &str = "utils";
 
-        let mut app = test::init_service(
-            App::new()
-                .data(ServerData { db })
-                .service(index::handle)
-                .service(register::handle)
-                .service(execute::handle),
-        )
-        .await;
+        let port = portpicker::pick_unused_port().unwrap();
+        let server = task::spawn(async move {
+            let mut app = tide::with_state(Arc::new(ServerData { db }));
 
-        // Send request with no registered functions
-        let req = test::TestRequest::post()
-            .uri("/")
-            .header(header::CONTENT_TYPE, "application/json")
-            .set_json(&index::Request {
-                wasm_hex: hex_utils.as_str().into(),
-                function_name: "double".into(),
-                params: vec![2.into()],
-                host_modules: Vec::new(),
-            })
-            .to_request();
-        let body = test::read_response(&mut app, req).await;
-        let resp: [WasmValue; 1] = serde_json::from_slice(&body).unwrap();
-        assert_eq!(resp, [WasmValue::I32(4)]);
+            app.at("/").post(index::handle);
+            app.at("/register").post(register::handle);
+            app.at("/execute").post(execute::handle);
 
-        // Register utils module
-        let req = test::TestRequest::post()
-            .uri("/register")
-            .header(header::CONTENT_TYPE, "application/json")
-            .set_json(&register::Request {
-                module_name: UTILS.into(),
-                wasm_hex: hex_utils.as_str().into(),
-                host_modules: Vec::new(),
-            })
-            .to_request();
-        let resp = test::call_service(&mut app, req).await;
-        assert!(resp.status().is_success());
+            app.listen(("localhost", port)).await?;
+            Result::<(), http_types::Error>::Ok(())
+        });
 
-        // Execute registered function
-        let req = test::TestRequest::post()
-            .uri("/execute")
-            .header(header::CONTENT_TYPE, "application/json")
-            .set_json(&execute::Request {
-                module_name: UTILS.into(),
-                function_name: "double".into(),
-                params: vec![2.into()],
-            })
-            .to_request();
-        let resp: Vec<WasmValue> = test::read_response_json(&mut app, req).await;
-        assert_eq!(resp, [WasmValue::I32(4)]);
+        let client = task::spawn(async move {
+            task::sleep(Duration::from_millis(100)).await;
+            let uri = format!("http://localhost:{}", port);
+            let mut res = surf::post(uri)
+                .body(http_types::Body::from_json(&index::Request {
+                    wasm_hex: hex_utils.as_str().into(),
+                    function_name: "double".into(),
+                    params: vec![2i32.into()],
+                    host_modules: Vec::new(),
+                })?)
+                .await?;
+            assert_eq!(res.status(), http_types::StatusCode::Ok);
+            let value: [WasmValue; 1] = res.body_json().await.unwrap();
+            assert_eq!(value, [WasmValue::I32(4)]);
 
-        // Send execute request with code linking to registered function
-        let req = test::TestRequest::post()
-            .uri("/")
-            .header(header::CONTENT_TYPE, "application/json")
-            .set_json(&index::Request {
-                wasm_hex: hex_linking.as_str().into(),
-                function_name: "double_twice".into(),
-                params: vec![2.into()],
-                host_modules: vec!["utils".into()],
-            })
-            .to_request();
-        let resp: Vec<WasmValue> = test::read_response_json(&mut app, req).await;
-        assert_eq!(resp, [WasmValue::I32(8)]);
+            // Register utils module
+            let uri = format!("http://localhost:{}/register", port);
+            let res = surf::post(uri)
+                .body(http_types::Body::from_json(&register::Request {
+                    module_name: UTILS.into(),
+                    wasm_hex: hex_utils.as_str().into(),
+                    host_modules: Vec::new(),
+                })?)
+                .await?;
+            assert_eq!(res.status(), http_types::StatusCode::Ok);
+
+            // Execute registered function
+            let uri = format!("http://localhost:{}/execute", port);
+            let mut res = surf::post(uri)
+                .body(http_types::Body::from_json(&execute::Request {
+                    module_name: UTILS.into(),
+                    function_name: "double".into(),
+                    params: vec![2i32.into()],
+                })?)
+                .await?;
+            assert_eq!(res.status(), http_types::StatusCode::Ok);
+            let value: [WasmValue; 1] = res.body_json().await.unwrap();
+            assert_eq!(value, [WasmValue::I32(4)]);
+
+            // Send execute request with code linking to registered function
+            let uri = format!("http://localhost:{}", port);
+            let mut res = surf::post(uri)
+                .body(http_types::Body::from_json(&index::Request {
+                    wasm_hex: hex_linking.as_str().into(),
+                    function_name: "double_twice".into(),
+                    params: vec![2i32.into()],
+                    host_modules: vec!["utils".into()],
+                })?)
+                .await?;
+            assert_eq!(res.status(), http_types::StatusCode::Ok);
+            let value: [WasmValue; 1] = res.body_json().await.unwrap();
+            assert_eq!(value, [WasmValue::I32(8)]);
+
+            Ok(())
+        });
+
+        server.race(client).await.unwrap();
     }
 
     #[test]
