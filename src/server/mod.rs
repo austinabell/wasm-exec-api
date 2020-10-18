@@ -1,19 +1,18 @@
-mod execute;
-mod index;
-mod register;
+pub mod execute;
+pub mod index;
+pub mod register;
 
-use crate::LocalDB;
 use std::sync::Arc;
 use tide::utils::After;
 use tide::Response;
+use utils::WasmStore;
 
-pub struct ServerData {
-    /// Database which stores wasm code to be loaded and run.
-    pub db: Arc<LocalDB>,
-}
 /// Initialize database and start server.
-pub(super) async fn start(port: u16, store: Arc<LocalDB>) -> tide::Result<()> {
-    let mut app = tide::with_state(Arc::new(ServerData { db: store }));
+pub async fn start<S>(port: u16, store: Arc<S>) -> tide::Result<()>
+where
+    S: WasmStore + Send + Sync + 'static,
+{
+    let mut app = tide::with_state(store);
 
     app.with(After(|mut res: Response| async {
         // ! You may want to remove this error message, only helpful for debugging
@@ -34,7 +33,7 @@ pub(super) async fn start(port: u16, store: Arc<LocalDB>) -> tide::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LocalDB;
+    use crate::local_db::LocalDB;
     use async_std::prelude::*;
     use async_std::task;
     use serde_cbor::{from_slice, to_vec};
@@ -56,7 +55,7 @@ mod tests {
 
         let port = portpicker::pick_unused_port().unwrap();
         let server = task::spawn(async move {
-            let mut app = tide::with_state(Arc::new(ServerData { db }));
+            let mut app = tide::with_state(db);
 
             app.at("/").post(index::handle);
             app.at("/register").post(register::handle);
@@ -137,26 +136,26 @@ mod tests {
         assert_eq!(wasm_mod_deser.host_modules, wasm_ref.host_modules);
     }
 
-    #[test]
-    fn store_load() {
+    #[async_std::test]
+    async fn store_load() {
         let config = sled::Config::new().temporary(true);
         let db = LocalDB(config.open().unwrap());
         let code = include_bytes!("../../utils.wasm");
 
-        assert!(load_wasm_module_recursive(&db, "utils").is_err());
+        assert!(load_wasm_module_recursive(&db, b"utils").is_err());
 
         // Trying to load with dependency module that doesn't exist
-        assert!(store_wasm_module(&db, "test", code, &["utils".into()]).is_err());
+        assert!(store_wasm_module(&db, b"test", code, &["utils".into()]).is_err());
 
         // Store and load utils
-        store_wasm_module(&db, "utils", code, &[]).unwrap();
-        assert!(load_wasm_module_recursive(&db, "utils").is_ok());
+        store_wasm_module(&db, b"utils", code, &[]).unwrap();
+        assert!(load_wasm_module_recursive(&db, b"utils").is_ok());
 
         // Shouldn't be able to overwrite existing module
-        assert!(store_wasm_module(&db, "utils", code, &[]).is_err());
+        assert!(store_wasm_module(&db, b"utils", code, &[]).is_err());
 
         // Should be able to store link with host module of now stored "utils"
-        store_wasm_module(&db, "link", code, &["utils".into()]).unwrap();
-        assert!(load_wasm_module_recursive(&db, "link").is_ok());
+        store_wasm_module(&db, b"link", code, &["utils".into()]).unwrap();
+        assert!(load_wasm_module_recursive(&db, b"link").is_ok());
     }
 }

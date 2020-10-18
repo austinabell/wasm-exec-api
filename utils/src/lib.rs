@@ -25,22 +25,22 @@ pub struct WasmModuleRef<'a, 'm> {
 /// Interface to allow wasm modules to be loaded and stored with different backends.
 pub trait WasmStore {
     /// Loads Wasm module from store.
-    fn load_module(&self, name: impl AsRef<[u8]>) -> Result<WasmModule, Error>;
+    fn load_module(&self, name: &[u8]) -> Result<WasmModule, Error>;
 
     /// Checks if module already exists in the store.
-    fn contains_module(&self, name: impl AsRef<[u8]>) -> Result<bool, Error>;
+    fn contains_module(&self, name: &[u8]) -> Result<bool, Error>;
 
     /// Stores wasm module in store.
     fn put_module(
         &self,
-        name: impl AsRef<[u8]>,
+        name: &[u8],
         code: &[u8],
         host_modules: &[Cow<'_, str>],
     ) -> Result<(), Error>;
 }
 
 /// Loads wasm module from store, as well as loading all module dependencies recursively.
-pub fn load_wasm_module_recursive<S>(db: &S, module_name: &str) -> Result<Instance, Error>
+pub fn load_wasm_module_recursive<S>(db: &S, module_name: &[u8]) -> Result<Instance, Error>
 where
     S: WasmStore,
 {
@@ -58,7 +58,7 @@ where
 /// dependency modules exist in the database before storing the code.
 pub fn store_wasm_module<S>(
     db: &S,
-    module_name: &str,
+    module_name: &[u8],
     code: &[u8],
     host_modules: &[Cow<'_, str>],
 ) -> Result<(), Error>
@@ -68,16 +68,14 @@ where
     // This check is just to short circuit the other logic, the insertion is unique.
     if db.contains_module(module_name)? {
         return Err(anyhow!(
-            "Could not store module {}: already exists in database",
-            module_name
+            "Could not store module: already exists in database",
         ));
     }
 
     for module in host_modules {
         if !db.contains_module(module.as_bytes())? {
             return Err(anyhow!(
-                "Could not store module {}: dependency module {} does not exist in database",
-                module_name,
+                "Could not store module: dependency module {} does not exist in database",
                 module
             ));
         }

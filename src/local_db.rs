@@ -7,7 +7,7 @@ use utils::*;
 /// Represents a sled db to load and store Wasm code.
 pub struct LocalDB(pub Db);
 impl WasmStore for LocalDB {
-    fn load_module(&self, name: impl AsRef<[u8]>) -> Result<WasmModule, Error> {
+    fn load_module(&self, name: &[u8]) -> Result<WasmModule, Error> {
         let bytes = self.0.get(name.as_ref())?.ok_or_else(|| {
             anyhow!(
                 "Could not find module {} in the database",
@@ -17,12 +17,12 @@ impl WasmStore for LocalDB {
         })?;
         Ok(from_slice(bytes.as_ref())?)
     }
-    fn contains_module(&self, name: impl AsRef<[u8]>) -> Result<bool, Error> {
+    fn contains_module(&self, name: &[u8]) -> Result<bool, Error> {
         Ok(self.0.contains_key(name.as_ref())?)
     }
     fn put_module(
         &self,
-        name: impl AsRef<[u8]>,
+        name: &[u8],
         code: &[u8],
         host_modules: &[Cow<'_, str>],
     ) -> Result<(), Error> {

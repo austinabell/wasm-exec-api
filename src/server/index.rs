@@ -1,10 +1,9 @@
-use super::ServerData;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::borrow::Cow;
 use std::sync::Arc;
 use tide::{Body, Response, StatusCode};
-use utils::{load_wasm_module_recursive, wasm::execute_wasm};
+use utils::{load_wasm_module_recursive, wasm::execute_wasm, WasmStore};
 use wasmer_runtime::ImportObject;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -17,7 +16,10 @@ pub struct Request<'a> {
     pub host_modules: Vec<Cow<'a, str>>,
 }
 
-pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result {
+pub async fn handle<S>(mut req: tide::Request<Arc<S>>) -> tide::Result
+where
+    S: WasmStore,
+{
     let Request {
         wasm_hex,
         function_name,
@@ -30,7 +32,7 @@ pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result {
     // Import host functions
     let mut imports = ImportObject::new();
     for module in host_modules {
-        let import = load_wasm_module_recursive(req.state().db.as_ref(), module.as_ref())?;
+        let import = load_wasm_module_recursive(req.state().as_ref(), module.as_bytes())?;
         imports.register(module, import);
     }
 

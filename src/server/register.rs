@@ -1,4 +1,3 @@
-use super::ServerData;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -12,7 +11,10 @@ pub struct Request<'a> {
     pub host_modules: Vec<Cow<'a, str>>,
 }
 
-pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result<String> {
+pub async fn handle<S>(mut req: tide::Request<Arc<S>>) -> tide::Result<String>
+where
+    S: WasmStore,
+{
     let Request {
         module_name,
         wasm_hex,
@@ -22,8 +24,8 @@ pub async fn handle(mut req: tide::Request<Arc<ServerData>>) -> tide::Result<Str
     let wasm_bytes = hex::decode(wasm_hex.as_ref())?;
 
     store_wasm_module(
-        req.state().db.as_ref(),
-        module_name.as_ref(),
+        req.state().as_ref(),
+        module_name.as_bytes(),
         &wasm_bytes,
         &host_modules,
     )?;
