@@ -12,7 +12,7 @@ use wasm_exec_api::utils::{WasmModule, WasmModuleRef, WasmStore};
 /// Represents a sled db to load and store Wasm code.
 pub struct P2pStore(pub Sender<NetworkRequest>);
 impl WasmStore for P2pStore {
-    fn load_module(&self, name: &[u8]) -> Result<WasmModule, Error> {
+    fn load_module(&self, name: &str) -> Result<WasmModule, Error> {
         let bytes = task::block_on(async {
             let (tx, rx) = oneshot::channel();
             self.0
@@ -26,7 +26,7 @@ impl WasmStore for P2pStore {
 
         Ok(from_slice(bytes.as_ref())?)
     }
-    fn contains_module(&self, name: &[u8]) -> Result<bool, Error> {
+    fn contains_module(&self, name: &str) -> Result<bool, Error> {
         task::block_on(async {
             let (tx, rx) = oneshot::channel();
             self.0
@@ -44,7 +44,7 @@ impl WasmStore for P2pStore {
     }
     fn put_module(
         &self,
-        name: &[u8],
+        name: &str,
         code: &[u8],
         host_modules: &[Cow<'_, str>],
     ) -> Result<(), Error> {

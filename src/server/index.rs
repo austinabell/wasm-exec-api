@@ -32,7 +32,7 @@ where
     // Import host functions
     let mut imports = ImportObject::new();
     for module in host_modules {
-        let import = load_wasm_module_recursive(req.state().as_ref(), module.as_bytes())?;
+        let import = load_wasm_module_recursive(req.state().as_ref(), module.as_ref())?;
         imports.register(module, import);
     }
 

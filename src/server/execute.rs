@@ -23,7 +23,7 @@ where
         function_name,
         params,
     } = req.body_json().await?;
-    let module = load_wasm_module_recursive(req.state().as_ref(), module_name.as_bytes())?;
+    let module = load_wasm_module_recursive(req.state().as_ref(), module_name.as_ref())?;
 
     let res = wasm::call_fn(&module, &function_name, params)?;
     Ok(Response::builder(StatusCode::Ok)

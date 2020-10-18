@@ -25,7 +25,7 @@ where
 
     store_wasm_module(
         req.state().as_ref(),
-        module_name.as_bytes(),
+        module_name.as_ref(),
         &wasm_bytes,
         &host_modules,
     )?;

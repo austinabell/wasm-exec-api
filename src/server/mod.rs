@@ -142,20 +142,20 @@ mod tests {
         let db = LocalDB(config.open().unwrap());
         let code = include_bytes!("../../utils.wasm");
 
-        assert!(load_wasm_module_recursive(&db, b"utils").is_err());
+        assert!(load_wasm_module_recursive(&db, "utils").is_err());
 
         // Trying to load with dependency module that doesn't exist
-        assert!(store_wasm_module(&db, b"test", code, &["utils".into()]).is_err());
+        assert!(store_wasm_module(&db, "test", code, &["utils".into()]).is_err());
 
         // Store and load utils
-        store_wasm_module(&db, b"utils", code, &[]).unwrap();
-        assert!(load_wasm_module_recursive(&db, b"utils").is_ok());
+        store_wasm_module(&db, "utils", code, &[]).unwrap();
+        assert!(load_wasm_module_recursive(&db, "utils").is_ok());
 
         // Shouldn't be able to overwrite existing module
-        assert!(store_wasm_module(&db, b"utils", code, &[]).is_err());
+        assert!(store_wasm_module(&db, "utils", code, &[]).is_err());
 
         // Should be able to store link with host module of now stored "utils"
-        store_wasm_module(&db, b"link", code, &["utils".into()]).unwrap();
-        assert!(load_wasm_module_recursive(&db, b"link").is_ok());
+        store_wasm_module(&db, "link", code, &["utils".into()]).unwrap();
+        assert!(load_wasm_module_recursive(&db, "link").is_ok());
     }
 }

@@ -7,8 +7,8 @@ use utils::*;
 /// Represents a sled db to load and store Wasm code.
 pub struct LocalDB(pub Db);
 impl WasmStore for LocalDB {
-    fn load_module(&self, name: &[u8]) -> Result<WasmModule, Error> {
-        let bytes = self.0.get(name.as_ref())?.ok_or_else(|| {
+    fn load_module(&self, name: &str) -> Result<WasmModule, Error> {
+        let bytes = self.0.get(name)?.ok_or_else(|| {
             anyhow!(
                 "Could not find module {} in the database",
                 // TODO this may not always be utf8 in future
@@ -17,12 +17,12 @@ impl WasmStore for LocalDB {
         })?;
         Ok(from_slice(bytes.as_ref())?)
     }
-    fn contains_module(&self, name: &[u8]) -> Result<bool, Error> {
-        Ok(self.0.contains_key(name.as_ref())?)
+    fn contains_module(&self, name: &str) -> Result<bool, Error> {
+        Ok(self.0.contains_key(name)?)
     }
     fn put_module(
         &self,
-        name: &[u8],
+        name: &str,
         code: &[u8],
         host_modules: &[Cow<'_, str>],
     ) -> Result<(), Error> {
@@ -30,7 +30,7 @@ impl WasmStore for LocalDB {
         // Compare and swap to do unique insertion to enforce modules can't be overwritten
         // with race condition.
         self.0
-            .compare_and_swap(name.as_ref(), None as Option<&[u8]>, Some(serialized))??;
+            .compare_and_swap(name, None as Option<&[u8]>, Some(serialized))??;
         Ok(())
     }
 }
