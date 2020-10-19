@@ -1,7 +1,7 @@
+use crate::utils::*;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::sync::Arc;
-use utils::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Request<'a> {

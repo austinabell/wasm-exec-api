@@ -2,10 +2,10 @@ pub mod execute;
 pub mod index;
 pub mod register;
 
+use crate::utils::WasmStore;
 use std::sync::Arc;
 use tide::utils::After;
 use tide::Response;
-use utils::WasmStore;
 
 /// Initialize database and start server.
 pub async fn start<S>(port: u16, store: Arc<S>) -> tide::Result<()>
@@ -34,11 +34,11 @@ where
 mod tests {
     use super::*;
     use crate::local_db::LocalDB;
+    use crate::utils::*;
     use async_std::prelude::*;
     use async_std::task;
     use serde_cbor::{from_slice, to_vec};
     use std::time::Duration;
-    use utils::*;
     use wasmer_runtime::Value as WasmValue;
 
     #[async_std::test]

@@ -1,4 +1,4 @@
-use super::MyBehaviour;
+use super::behaviour::MyBehaviour;
 use async_std::sync::Receiver;
 use futures::channel::oneshot::Sender as OneshotSender;
 use futures::{select, StreamExt};

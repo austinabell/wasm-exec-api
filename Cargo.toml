@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["austinabell <austinabell8@gmail.com>"]
 edition = "2018"
 
+[package.metadata.docs.rs]
+features = ["p2p"]
+
 [dependencies]
 serde = "1.0"
 wasmer-runtime = "0.17.1"
@@ -18,15 +21,27 @@ sled = "0.34.4"
 dirs = "3.0"
 serde_cbor = "0.11.0"
 serde_tuple = "0.5"
-utils = { path = "./utils", package = "wasm-exec-utils" }
 tide = "0.14.0"
 async-std = { version = "1.6.3", features = ["attributes"] }
 anyhow = "1.0"
+libp2p = { version = "0.29", default_features = false, features = [
+    "kad",
+    "identify",
+    "ping",
+    "mdns-async-std",
+    "yamux",
+    "tcp-async-std",
+    "dns",
+    "mplex",
+    "websocket",
+    "noise"
+], optional = true }
+futures = { version = "0.3.6", optional = true }
+
+[features]
+p2p = ["libp2p", "futures"]
 
 [dev-dependencies]
 http-types = "2.5.0"
 surf = "2.0"
 portpicker = "0.1.0"
-
-[workspace]
-members = ["utils", "p2p"]

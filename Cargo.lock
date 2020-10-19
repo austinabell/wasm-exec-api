@@ -2208,21 +2208,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "p2p"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-log",
- "async-std",
- "futures",
- "libp2p",
- "log",
- "pretty_env_logger",
- "serde_cbor",
- "wasm-exec-api",
-]
-
-[[package]]
 name = "page_size"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3720,8 +3705,10 @@ dependencies = [
  "async-log",
  "async-std",
  "dirs",
+ "futures",
  "hex",
  "http-types",
+ "libp2p",
  "log",
  "portpicker",
  "pretty_env_logger",
@@ -3732,21 +3719,8 @@ dependencies = [
  "sled",
  "surf",
  "tide",
- "wasm-exec-utils",
  "wasmer-runtime",
  "wasmer-runtime-core",
-]
-
-[[package]]
-name = "wasm-exec-utils"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_cbor",
- "serde_json",
- "serde_tuple",
- "wasmer-runtime",
 ]
 
 [[package]]

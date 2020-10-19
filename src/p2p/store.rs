@@ -1,4 +1,5 @@
 use super::service::NetworkRequest;
+use crate::utils::{WasmModule, WasmModuleRef, WasmStore};
 use anyhow::Error;
 use async_std::future;
 use async_std::{sync::Sender, task};
@@ -7,7 +8,6 @@ use libp2p::kad::record::Key;
 use serde_cbor::{from_slice, to_vec};
 use std::borrow::Cow;
 use std::time::Duration;
-use wasm_exec_api::utils::{WasmModule, WasmModuleRef, WasmStore};
 
 /// Represents a sled db to load and store Wasm code.
 pub struct P2pStore(pub Sender<NetworkRequest>);

@@ -1,9 +1,9 @@
+use crate::utils::{load_wasm_module_recursive, wasm::execute_wasm, WasmStore};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::borrow::Cow;
 use std::sync::Arc;
 use tide::{Body, Response, StatusCode};
-use utils::{load_wasm_module_recursive, wasm::execute_wasm, WasmStore};
 use wasmer_runtime::ImportObject;
 
 #[derive(Serialize, Deserialize, Debug)]

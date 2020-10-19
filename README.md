@@ -22,6 +22,7 @@ curl -X POST --data '{"wasm_hex": "0061736d0100000001060160017f017f03020100070a0
 - [x] Wasm code inspection to be able to infer the params types to not have to specify the enum of possible values (example: `2` instead of `{"I32": 2}`) for each value and give better error returns
 - [ ] Functionality to set shared memory of runtime environment to be able to be used in func
 - [x] Implement way to setup host functions to access during execution
+- [x] Storing Wasm modules on a distributed hash table on a p2p network
 
 ## Generating hex dump of wasm file
 
@@ -59,4 +60,12 @@ curl -X POST --data '{"wasm_hex": "0061736d0100000001060160017f017f0210010575746
 
 ## Wasm module store backends
 
-TODO
+The default backend when running the API is a [sled](https://github.com/spacejam/sled) database. The data directory can be configured or can be replaced with an in memory store.
+
+There is an alternative backend which starts a peer to peer node with [libp2p](https://github.com/libp2p/rust-libp2p) and uses a Kademlia distributed hash table (DHT). This alternative is not as stable as the regular client-server architecture, but it's more fun.
+
+To run as a p2p node, compile with the `p2p` feature:
+```bash
+cargo build --release --features p2p
+./target/release/wasm-exec-api
+```

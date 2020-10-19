@@ -1,8 +1,8 @@
+use super::utils::*;
 use anyhow::{anyhow, Error};
 use serde_cbor::{from_slice, to_vec};
 use sled::Db;
 use std::borrow::Cow;
-use utils::*;
 
 /// Represents a sled db to load and store Wasm code.
 pub struct LocalDB(pub Db);

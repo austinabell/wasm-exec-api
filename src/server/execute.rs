@@ -1,10 +1,10 @@
+use crate::utils::WasmStore;
+use crate::utils::{load_wasm_module_recursive, wasm};
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::borrow::Cow;
 use std::sync::Arc;
 use tide::{Body, Response, StatusCode};
-use utils::WasmStore;
-use utils::{load_wasm_module_recursive, wasm};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Request<'a> {
