@@ -12,7 +12,7 @@ Code can also be persisted and recursively linked, using the `/register` endpoin
 ### Example request
 
 ```bash
-curl -X POST --data '{"wasm_hex": "0061736d0100000001060160017f017f03020100070a0106646f75626c6500000a09010700200041026c0b", "function_name": "double", "params": [2]}' -H "Content-Type: application/json" http://localhost:4000/
+curl -X POST --data '{"function_name": "double", "params": [2], "wasm_hex": "0061736d0100000001060160017f017f03020100070a0106646f75626c6500000a09010700200041026c0b"}' -H "Content-Type: application/json" http://localhost:4000/
 ```
 
 ## Next steps
