@@ -42,11 +42,14 @@ async fn main() -> tide::Result<()> {
 async fn main() -> Result<(), anyhow::Error> {
     use anyhow::anyhow;
     use async_std::{sync::channel, task};
+    use config::Config;
     use libp2p::{build_development_transport, identity, PeerId, Swarm};
     use p2p::{behaviour::MyBehaviour, service::P2pService, store};
     use std::sync::Arc;
 
     logger::setup_logger();
+
+    let Config { port } = argh::from_env();
 
     // Create a random key for ourselves.
     let local_key = identity::Keypair::generate_ed25519();
@@ -64,7 +67,6 @@ async fn main() -> Result<(), anyhow::Error> {
     Swarm::listen_on(&mut swarm, "/ip4/0.0.0.0/tcp/0".parse()?)?;
 
     // Start server and wait for requests
-    // TODO get port from CLI
     let (network_sender, network_receiver) = channel(50);
 
     // Start listening for network events on the p2p service
@@ -76,7 +78,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .run(),
     );
 
-    server::start(4000, Arc::new(store::P2pStore(network_sender)))
+    server::start(port, Arc::new(store::P2pStore(network_sender)))
         .await
         .map_err(|e| anyhow!("{}", e))?;
 

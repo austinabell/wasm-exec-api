@@ -8,10 +8,12 @@ pub(super) struct Config {
     pub port: u16,
 
     /// data directory for storing registered Wasm functions.
+    #[cfg(not(feature = "p2p"))]
     #[argh(option, short = 'd')]
     pub data_directory: Option<String>,
 
     /// if flag is set, database will not be persisted
+    #[cfg(not(feature = "p2p"))]
     #[argh(switch, short = 'm')]
     pub memory: bool,
 }
